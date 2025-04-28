@@ -4,24 +4,26 @@ import (
 	"log"
 	"os"
 
+	"fitness-bot/core"
+	"fitness-bot/models"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Загружаем .env, если он есть
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ Файл .env не найден, продолжаем без него...")
+	// Загружаем переменные окружения
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("❌ Ошибка загрузки .env файла")
+	}
+	models.InitDB()
+	token := os.Getenv("TELEGRAM_TOKEN")
+	if token == "" {
+		log.Fatal("❌ TELEGRAM_TOKEN не найден в .env")
 	}
 
-	telegramToken := os.Getenv("TELEGRAM_TOKEN")
-	if telegramToken == "" {
-		log.Fatal("❌ Нет TELEGRAM_TOKEN в окружении")
-	}
+	core.ClearOldUpdates(token)
+	core.Start(token)
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		log.Fatal("❌ Нет DATABASE_URL в окружении")
-	}
+	models.InitDB()
 
-	// Дальше идёт подключение базы и запуск бота...
 }
