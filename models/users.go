@@ -31,9 +31,8 @@ ON CONFLICT (telegram_id) DO NOTHING
 // ✅ Получение одного пользователя по ID
 func GetUser(id int64) *User {
 	row := DB.QueryRow(context.Background(), `
-		SELECT id, username, name, joined_at
-		FROM users WHERE id = $1
-	`, id)
+		SELECT telegram_id, username, name, joined_at FROM users WHERE telegram_id = $1
+	`, telegram_id)
 
 	var u User
 	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.JoinedAt)
