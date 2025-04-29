@@ -19,9 +19,9 @@ type User struct {
 // ✅ Регистрирует пользователя (если он ещё не существует)
 func RegisterUser(id int64, username, name string) {
 	_, err := DB.Exec(context.Background(), `
-		INSERT INTO users (id, username, name, joined_at)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (id) DO NOTHING
+		INSERT INTO users (telegram_id, username, name, joined_at)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (telegram_id) DO NOTHING
 	`, id, username, name, time.Now())
 	if err != nil {
 		log.Println("❌ Ошибка при регистрации пользователя:", err)
