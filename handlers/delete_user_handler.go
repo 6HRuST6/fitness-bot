@@ -28,7 +28,7 @@ func HandleDeleteUserCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		return
 	}
 
-	_, err = models.DB.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, userID)
+	_, err = models.DB.Exec(context.Background(), `DELETE FROM users WHERE telegram_id = $1`, userID)
 	if err != nil {
 		log.Println("❌ Ошибка при удалении пользователя:", err)
 		msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Не удалось удалить пользователя 😢")
