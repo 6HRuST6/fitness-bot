@@ -32,7 +32,7 @@ ON CONFLICT (telegram_id) DO NOTHING
 func GetUser(id int64) *User {
 	row := DB.QueryRow(context.Background(), `
 		SELECT telegram_id, username, name, joined_at FROM users WHERE telegram_id = $1
-	`, telegram_id)
+	`, id)
 
 	var u User
 	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.JoinedAt)
@@ -51,7 +51,7 @@ func FormatUser(u *User) string {
 // ✅ Получение всех пользователей (для /clients, show_clients )
 func GetAllUsers() ([]*User, error) {
 	rows, err := DB.Query(context.Background(), `
-		SELECT id, username, name, joined_at
+		SELECT telegram_id, username, name, joined_at
 		FROM users
 		ORDER BY joined_at DESC
 	`)
