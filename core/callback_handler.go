@@ -3,7 +3,9 @@ package core
 import (
 	"fitness-bot/handlers"
 	"log"
+	"strconv"
 	"strings"
+	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -41,6 +43,37 @@ func handleCallback(update tgbotapi.Update) {
 	case data == "poll_start":
 		handlers.HandlePollStart(Bot, update)
 
-	}
+	case strings.HasPrefix(data, "react_"):
+		parts := strings.Split(data, "_")
+		if len(parts) != 3 {
+			return
+		}
 
+		userID, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return
+		}
+
+		reaction := parts[2]
+		var text string
+
+		switch reaction {
+		case "good":
+			text = "👍 Тренер одобрил фото!"
+		case "fire":
+			text = "🔥 Отлично! Держи темп!"
+		case "warn":
+			text = "⚠️ Обрати внимание на питание."
+		default:
+			text = "👀 Неизвестная реакция."
+		}
+
+		// Отправка клиенту
+		msg := tgbotapi.NewMessage(userID, text)
+		Bot.Send(msg)
+
+		// Подтверждение тренеру
+		callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "✅ Реакция отправлена!")
+		Bot.Request(callback)
+	}
 }
