@@ -5,6 +5,7 @@ import (
 	"fitness-bot/models"
 	"fmt"
 	"log"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -41,7 +42,6 @@ func handleMessage(update tgbotapi.Update) {
 	if update.Message.Photo != nil {
 		fileID := update.Message.Photo[len(update.Message.Photo)-1].FileID
 
-		// Сохраняем в базу (опционально)
 		err := models.SaveUserPhoto(chatID, fileID)
 		if err != nil {
 			log.Println("❌ Ошибка сохранения фото:", err)
@@ -55,6 +55,13 @@ func handleMessage(update tgbotapi.Update) {
 			caption := fmt.Sprintf("📷 Фото от @%s (%s)", username, user.FirstName)
 			photo := tgbotapi.NewPhoto(models.TrainerID, tgbotapi.FileID(fileID))
 			photo.Caption = caption
+			photo.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("👍", fmt.Sprintf("react_%d_good", chatID)),
+					tgbotapi.NewInlineKeyboardButtonData("🔥", fmt.Sprintf("react_%d_fire", chatID)),
+					tgbotapi.NewInlineKeyboardButtonData("⚠️", fmt.Sprintf("react_%d_warn", chatID)),
+				),
+			)
 			Bot.Send(photo)
 
 			Bot.Send(tgbotapi.NewMessage(chatID, "✅ Фото сохранено и отправлено тренеру."))
@@ -63,20 +70,21 @@ func handleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	// === Обработка комментариев по кнопке  ===
+	// === Обработка комментариев по кнопке ===
 	if pendingCommentRequest[chatID] {
-	delete(pendingCommentRequest, chatID)
+		delete(pendingCommentRequest, chatID)
 
-	username := user.UserName
-	if username == "" {
-		username = "без username"
+		username := user.UserName
+		if username == "" {
+			username = "без username"
+		}
+
+		message := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", username, user.FirstName, text)
+		Bot.Send(tgbotapi.NewMessage(models.TrainerID, message))
+		Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
+		return
 	}
 
-	message := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", username, user.FirstName, text)
-	Bot.Send(tgbotapi.NewMessage(models.TrainerID, message))
-	Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
-	return
-}
 	// === Встроенные функции ===
 	if handlers.CheckAndHandleRecommendation(Bot, update) {
 		return
