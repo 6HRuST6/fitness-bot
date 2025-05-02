@@ -19,8 +19,8 @@ func trainerKeyboard() tgbotapi.ReplyKeyboardMarkup {
 func clientKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("📸 Отправить фото"),
-			tgbotapi.NewKeyboardButton("✍️ Добавить комментарий"),
-		),
+	tgbotapi.NewKeyboardButton("📸 Отправить фото"),
+	tgbotapi.NewKeyboardButton("✍️ Добавить комментарий"),
+),
 	)
 }
