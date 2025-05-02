@@ -9,6 +9,9 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+var pendingPhotoRequest = make(map[int64]bool)
+var pendingCommentRequest = make(map[int64]bool)
+
 func handleMessage(update tgbotapi.Update) {
 	if handlers.CheckAndHandlePoll(Bot, update) {
 		return
@@ -20,38 +23,62 @@ func handleMessage(update tgbotapi.Update) {
 	chatID := update.Message.Chat.ID
 	text := update.Message.Text
 
-	// ✍️ Комментарий к фото
-	if fileID, ok := handlers.PendingComment(chatID); ok {
-		handlers.SavePhotoComment(Bot, update, fileID)
-		return
-	}
-
-	// ✍️ Проверка: если это рекомендация
-	if handlers.CheckAndHandleRecommendation(Bot, update) {
-		return
-	}
-
-	// 📷 Фото
-	if update.Message.Photo != nil {
-		userID := update.Message.From.ID
-		fileID := update.Message.Photo[len(update.Message.Photo)-1].FileID
-
-		err := models.SaveUserPhoto(userID, fileID)
-		if err != nil {
-			log.Println("Ошибка сохранения фото:", err)
-			msg := tgbotapi.NewMessage(chatID, "❌ Ошибка при сохранении фото.")
-			Bot.Send(msg)
-			return
-		}
-
-		handlers.MarkPendingPhoto(chatID, fileID)
-
-		msg := tgbotapi.NewMessage(chatID, "✍️ Напиши комментарий к фото. Например: завтрак, обед, самочувствие и т.д.")
+	// Обработка команды "📸 Отправить фото"
+	if text == "📸 Отправить фото" {
+		pendingPhotoRequest[chatID] = true
+		msg := tgbotapi.NewMessage(chatID, "📷 Пожалуйста, пришли фото.")
 		Bot.Send(msg)
 		return
 	}
 
-	// 💬 Команды/встроенные кнопки
+	// Обработка команды "✍️ Добавить комментарий"
+	if text == "✍️ Добавить комментарий" {
+		pendingCommentRequest[chatID] = true
+		msg := tgbotapi.NewMessage(chatID, "✍️ Напиши комментарий к последнему фото.")
+		Bot.Send(msg)
+		return
+	}
+
+	// Обработка комментария
+	if pendingCommentRequest[chatID] {
+	delete(pendingCommentRequest, chatID)
+
+	user := update.Message.From
+	comment := update.Message.Text
+
+	// Сообщение тренеру
+	commentMsg := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", user.UserName, user.FirstName, comment)
+	msg := tgbotapi.NewMessage(models.TrainerID, commentMsg)
+	Bot.Send(msg)
+
+	// Подтверждение клиенту
+	Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
+	return
+}
+	// Обработка фото
+	if update.Message.Photo != nil {
+		if pendingPhotoRequest[chatID] {
+			delete(pendingPhotoRequest, chatID)
+
+			fileID := update.Message.Photo[len(update.Message.Photo)-1].FileID
+			err := models.SaveUserPhoto(chatID, fileID)
+			if err != nil {
+				log.Println("Ошибка сохранения фото:", err)
+				Bot.Send(tgbotapi.NewMessage(chatID, "❌ Ошибка при сохранении фото."))
+			} else {
+				Bot.Send(tgbotapi.NewMessage(chatID, "✅ Фото сохранено!"))
+			}
+			return
+		}
+
+		Bot.Send(tgbotapi.NewMessage(chatID, "ℹ️ Пожалуйста, сначала нажми 📸 Отправить фото."))
+		return
+	}
+
+	// Остальная логика
+	if handlers.CheckAndHandleRecommendation(Bot, update) {
+		return
+	}
 	if handlers.CheckAndHandleBroadcast(Bot, update) {
 		return
 	}
@@ -85,7 +112,8 @@ func handleMessage(update tgbotapi.Update) {
 			msg.ReplyMarkup = trainerKeyboard()
 			Bot.Send(msg)
 		} else {
-			msg := tgbotapi.NewMessage(userID, "Ты зарегистрирован ✅ Отправляй фото еды или отчёты!")
+			msg := tgbotapi.NewMessage(userID, "Ты зарегистрирован ✅ Выбери действие:")
+			msg.ReplyMarkup = clientKeyboard()
 			Bot.Send(msg)
 		}
 		return
@@ -94,6 +122,10 @@ func handleMessage(update tgbotapi.Update) {
 		if chatID == models.TrainerID {
 			msg := tgbotapi.NewMessage(chatID, "📋 Главное меню тренера:")
 			msg.ReplyMarkup = trainerKeyboard()
+			Bot.Send(msg)
+		} else {
+			msg := tgbotapi.NewMessage(chatID, "📋 Меню пользователя:")
+			msg.ReplyMarkup = clientKeyboard()
 			Bot.Send(msg)
 		}
 		return
@@ -116,7 +148,7 @@ func handleMessage(update tgbotapi.Update) {
 			text := models.FormatUser(user)
 			button := tgbotapi.NewInlineKeyboardButtonData("📂 Карточка", fmt.Sprintf("open_card_%d", user.ID))
 			keyboard := tgbotapi.NewInlineKeyboardMarkup(
-				tgbotapi.NewInlineKeyboardRow(button),
+				tgbotapi.NewKeyboardRow(button),
 			)
 
 			msg := tgbotapi.NewMessage(chatID, text)
@@ -126,7 +158,10 @@ func handleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	// 🤷 Всё остальное
+	// Если не распознано
 	msg := tgbotapi.NewMessage(chatID, "Я пока не понимаю это сообщение 😅")
+	if chatID != models.TrainerID {
+		msg.ReplyMarkup = clientKeyboard()
+	}
 	Bot.Send(msg)
 }
