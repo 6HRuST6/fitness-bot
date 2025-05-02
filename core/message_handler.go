@@ -63,26 +63,20 @@ func handleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	// === Обработка комментариев (по кнопке или просто текст) ===
-	if pendingCommentRequest[chatID] || text != "" {
-		delete(pendingCommentRequest, chatID)
+	// === Обработка комментариев по кнопке  ===
+	if pendingCommentRequest[chatID] {
+	delete(pendingCommentRequest, chatID)
 
-		username := user.UserName
-		if username == "" {
-			username = "без username"
-		}
-
-		prefix := "💬"
-		if pendingCommentRequest[chatID] {
-			prefix = "✍️"
-		}
-
-		message := fmt.Sprintf("%s Сообщение от @%s (%s):\n\n%s", prefix, username, user.FirstName, text)
-		Bot.Send(tgbotapi.NewMessage(models.TrainerID, message))
-		Bot.Send(tgbotapi.NewMessage(chatID, "✅ Сообщение отправлено тренеру!"))
-		return
+	username := user.UserName
+	if username == "" {
+		username = "без username"
 	}
 
+	message := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", username, user.FirstName, text)
+	Bot.Send(tgbotapi.NewMessage(models.TrainerID, message))
+	Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
+	return
+}
 	// === Встроенные функции ===
 	if handlers.CheckAndHandleRecommendation(Bot, update) {
 		return
