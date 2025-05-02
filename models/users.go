@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const TrainerID int64 = 823298509
+const TrainerID int64 = 823298509,247753697
 
 type User struct {
 	ID       int64
