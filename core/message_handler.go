@@ -23,39 +23,38 @@ func handleMessage(update tgbotapi.Update) {
 	chatID := update.Message.Chat.ID
 	text := update.Message.Text
 
-	// Обработка команды "📸 Отправить фото"
-	if text == "📸 Отправить фото" {
+	// --- Обработка кнопок клиента ---
+	switch text {
+	case "📸 Отправить фото":
 		pendingPhotoRequest[chatID] = true
-		msg := tgbotapi.NewMessage(chatID, "📷 Пожалуйста, пришли фото.")
-		Bot.Send(msg)
+		Bot.Send(tgbotapi.NewMessage(chatID, "📷 Пожалуйста, пришли фото."))
 		return
-	}
 
-	// Обработка команды "✍️ Добавить комментарий"
-	if text == "✍️ Добавить комментарий" {
+	case "✍️ Добавить комментарий":
 		pendingCommentRequest[chatID] = true
-		msg := tgbotapi.NewMessage(chatID, "✍️ Напиши комментарий к последнему фото.")
-		Bot.Send(msg)
+		Bot.Send(tgbotapi.NewMessage(chatID, "✍️ Напиши комментарий, и я передам его тренеру."))
 		return
 	}
 
-	// Обработка комментария
+	// --- Обработка комментария ---
 	if pendingCommentRequest[chatID] {
-	delete(pendingCommentRequest, chatID)
+		delete(pendingCommentRequest, chatID)
 
-	user := update.Message.From
-	comment := update.Message.Text
+		user := update.Message.From
+		comment := update.Message.Text
 
-	// Сообщение тренеру
-	commentMsg := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", user.UserName, user.FirstName, comment)
-	msg := tgbotapi.NewMessage(models.TrainerID, commentMsg)
-	Bot.Send(msg)
+		username := user.UserName
+		if username == "" {
+			username = "без username"
+		}
 
-	// Подтверждение клиенту
-	Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
-	return
-}
-	// Обработка фото
+		commentMsg := fmt.Sprintf("✍️ Комментарий от @%s (%s):\n\n%s", username, user.FirstName, comment)
+		Bot.Send(tgbotapi.NewMessage(models.TrainerID, commentMsg))
+		Bot.Send(tgbotapi.NewMessage(chatID, "✅ Комментарий отправлен тренеру!"))
+		return
+	}
+
+	// --- Обработка фото ---
 	if update.Message.Photo != nil {
 		if pendingPhotoRequest[chatID] {
 			delete(pendingPhotoRequest, chatID)
@@ -71,11 +70,11 @@ func handleMessage(update tgbotapi.Update) {
 			return
 		}
 
-		Bot.Send(tgbotapi.NewMessage(chatID, "ℹ️ Пожалуйста, сначала нажми 📸 Отправить фото."))
+		Bot.Send(tgbotapi.NewMessage(chatID, "ℹ️ Сначала нажми 📸 Отправить фото."))
 		return
 	}
 
-	// Остальная логика
+	// --- Остальные встроенные функции ---
 	if handlers.CheckAndHandleRecommendation(Bot, update) {
 		return
 	}
@@ -99,6 +98,7 @@ func handleMessage(update tgbotapi.Update) {
 		return
 	}
 
+	// --- Команды: старт, меню, клиенты ---
 	switch text {
 	case "/start":
 		userID := chatID
@@ -132,15 +132,13 @@ func handleMessage(update tgbotapi.Update) {
 
 	case "/clients":
 		if chatID != models.TrainerID {
-			msg := tgbotapi.NewMessage(chatID, "⛔ Только тренер может просматривать список подопечных.")
-			Bot.Send(msg)
+			Bot.Send(tgbotapi.NewMessage(chatID, "⛔ Только тренер может просматривать список подопечных."))
 			return
 		}
 
 		users, err := models.GetAllUsers()
 		if err != nil || len(users) == 0 {
-			msg := tgbotapi.NewMessage(chatID, "У тебя пока нет зарегистрированных подопечных.")
-			Bot.Send(msg)
+			Bot.Send(tgbotapi.NewMessage(chatID, "У тебя пока нет зарегистрированных подопечных."))
 			return
 		}
 
@@ -148,7 +146,7 @@ func handleMessage(update tgbotapi.Update) {
 			text := models.FormatUser(user)
 			button := tgbotapi.NewInlineKeyboardButtonData("📂 Карточка", fmt.Sprintf("open_card_%d", user.ID))
 			keyboard := tgbotapi.NewInlineKeyboardMarkup(
-				tgbotapi.NewKeyboardRow(button),
+				tgbotapi.NewInlineKeyboardRow(button),
 			)
 
 			msg := tgbotapi.NewMessage(chatID, text)
@@ -158,7 +156,7 @@ func handleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	// Если не распознано
+	// --- Нераспознанное сообщение ---
 	msg := tgbotapi.NewMessage(chatID, "Я пока не понимаю это сообщение 😅")
 	if chatID != models.TrainerID {
 		msg.ReplyMarkup = clientKeyboard()
